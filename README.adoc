@@ -47,7 +47,7 @@ Part 2 deals with creating applications that extract data from a database, proce
 See the below diagram for solving this problem. We would use FTP to retrieve data from FTP server.
 
 
-image::images/solution_architecture_1.jpg[]
+image::images/solution_architecture_1.png[]
 
 === Requirements
 1. Need 12GB dedicated memory for PCFDev VM on your laptop
