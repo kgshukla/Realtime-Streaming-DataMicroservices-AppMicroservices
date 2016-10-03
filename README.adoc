@@ -132,7 +132,7 @@ $ cf start dataflow-server
 ==== Step 3. Compile rxjava-taxi-processor Processor Application
 Run following commands -
 ----
-$ cd raxjava-taxi-processor
+$ cd rxjava-taxi-processor
 $ mvn package
 $ cd staticdir
 $ cp ../target/spring-cloud-stream-rxjava-taxi-rabbit-1.1.1.RELEASE-exec.jar .
@@ -189,7 +189,7 @@ dataflow:> app info --id processor:rxjava-taxi
 
 ==== Step 5. Create and Run our Stream 
 
-Create Redis instance and an account (key). Note down the account details. We would need it later during our stream definition.
+Create Redis instance and an account (key). This is where we are going to push our processed data. Note down the account details. We would need it later during our stream definition.
 ----
 $ cf create-service p-redis shared-vm redis-taxi
 $ cf create-service-key redis-taxi redis-taxi-key
@@ -235,11 +235,16 @@ dataflow:> stream deploy --name TAXISTREAM_3
 dataflow:> stream deploy --name TAXISTREAM_2
 dataflow:> stream deploy --name TAXISTREAM_1
 ----
+What just happened here?
+Spring Cloud Dataflow instruct PCF to create applications and bind them to messaging layer (which is rabbit in this case. See above where we created a rabbit instance. PCF now manages the entire application lifecyle - ie app scaling, fault-tolerance, messaging layer resiliency, application self-healing. 
+
+Notice that you never specified here that which exchange each of the application should bind to get the message from rabbit. SCDF handles this during application deployment.
+
 Make sure, all are deployed by checking their "status" column
 ----
 dataflow:> stream list
 ----
-Goto shell prompt and get the name of the "log" application
+Goto shell prompt, make sure all applications status is "started" and get the name of the "log" application
 ----
 $ cf apps;
 Getting apps in org pcfdev-org / space SCDF as admin...
