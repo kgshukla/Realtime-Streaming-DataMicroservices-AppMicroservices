@@ -1,0 +1,271 @@
+= Large Scale Data Processing using Data and Application Microservices
+
+=== Introduction
+
+This demo aims to solve problem that appeared in DEBS challenge 2015
+
+http://www.debs2015.org/call-grand-challenge.html
+
+We use Pivotal Stack to solve the problem. Particularly, following products are used.
+
+1. Spring Cloud Dataflow
+2. Spring Cloud Streams (RxJava)
+3. Pivotal Cloud Foundry
+4. Redis
+5. RabbitMQ
+8. Spring Cloud Services (for Microservices driven architecture)
+7. Spring Boot, Google Charts and PHP based application
+
+Apps are built using Microservices pattern and utilizes Spring Cloud Suite (config server, service registry and circuit breaker) for a resilient, scale out architecture.
+
+=== Problem Statement
+
+Stream of taxi data comes in real time for new york region. Region is to be divided into areas, each measuring 300mx300m. Following questions needs to be solved in real time
+
+
+image::images/problemstmt.jpg[]
+
+
+Question 1 - For every 10 seconds, find out the top 10 routes where taxies are plying the most from one area to another area.
+
+Question 2 - For every 10 seconds, find out the top 3 routes (areas) 
+
+Question 3 - For every 10 seconds, find out free taxies (show only 50 in the map) available in the region
+
+Question 4 - For every 10 seconds, find out how much data is incorrectly reported by taxi drivers
+
+Question 5 - For every 10 seconds, find out how much time does your product takes to compute the above 4 things
+
+=== Solution Architecture
+
+There are two parts to this problem. 
+
+Part 1 deals with extracting data from the source (in real time), process the dtata in 10 seconds window, and then move the results to a database. Solving this problem largely involves creating data microservices and deploying them via Spring Cloud Dataflow on Pivotal Cloud Foundry. 
+
+Part 2 deals with creating applications that extract data from a database, process the data and return via API calls. These applications need to be resilient, fault-tolerant, scalable and therefore uses Spring Cloud Services (config server, service registry and circuit breaker) which are deployed on Pivotal Cloud Foundry. All applications run on Pivotal Cloud Foundry as well.
+
+See the below diagram for solving this problem. We would use FTP to retrieve data from FTP server.
+
+
+image::images/solution_architecture_1.jpg[]
+
+=== Requirements
+1. Need 12GB dedicated memory for PCFDev VM on your laptop
+2. VirtualBox on your laptop
+3. redis-cli on your laptop
+4. FTP server (on your laptop) or some machine accessible by PCFDev
+
+=== Part 1 - Building Data Microservices
+
+image::images/data_microservices.png[]
+
+As shown in the image above, we have following data microservices
+
+1. FTP "Source" Application - FTP source application is deployed via SCDF on PCF. This out-of-the-box microservice's job is to retrieve files from FTP server and then post each line (as a message) to the next in-line microservice.
+
+2. Custom Transformer "Processor" Application - This microservice is a custom processor using RxJava. It has a concept of a moving window. A window is created which captures all the messages for 10 seconds. Once 10 seconds are over, it processes all the data collected and answers above questions. Finally the derived output is sent to the next in-line microservice.
+
+3. Splitter "Processor" Application - This out-of-the-box microservice's receives input from custom processors and splits messages based on keys. It then moves the message to the next in-line microservice.
+
+4. Redis "Sink" Application - This microservice takes the incoming message, connects to the redis database and push the data with an assigned key.
+
+Why this architecture?
+
+1. Notice, how we have moved the computation to application layer.
+2. Because of this, computation can now be distributed by scaling individual applications.
+3. Pivotal Cloud Foundry manages all these applications, so if any application goes down, it would bring it back.
+4. You don't have to worry about the underlying messaging layer. It could be kafka or rabbit or redis or gemfire.
+5. You could have data affinity using SCDF's partitioning logic.
+6. Since the logic resides in applications, you could test these applications thoroughly and reuse them in your other architectures.
+
+==== Step 1. Install PCFDev
+Run following commands on your laptop. Make sure you have stopped majority of applications to free up memory.
+---
+$ cf dev start -s redis,rabbitmq,mysql,scs -m 12000
+Using existing image.
+Starting VM...
+Provisioning VM...
+Waiting for services to start...
+50 out of 50 running
+ _______  _______  _______    ______   _______  __   __
+ |       ||       ||       |  |      | |       ||  | |  |
+ |    _  ||       ||    ___|  |  _    ||    ___||  |_|  |
+ |   |_| ||       ||   |___   | | |   ||   |___ |       |
+ |    ___||      _||    ___|  | |_|   ||    ___||       |
+ |   |    |     |_ |   |      |       ||   |___  |     |
+ |___|    |_______||___|      |______| |_______|  |___|
+ is now running.
+ To begin using PCF Dev, please run:
+    cf login -a https://api.local.pcfdev.io --skip-ssl-validation
+    Admin user => Email: admin / Password: admin
+    Regular user => Email: user / Password: pass
+---
+Make sure you replace http url below, if it is different in your environment
+---
+$ cf login -a https://api.local.pcfdev.io --skip-ssl-validation -u admin -p admin -o pcfdev-org
+$ cf create-space SCDF
+$ cf target -s SCDF
+---
+
+We need to update java buildpack to 3.8.1+ version. Download buildpack here
+
+https://github.com/cloudfoundry/java-buildpack/releases/download/v3.8.1/java-buildpack-offline-v3.8.1.zip
+
+---
+$ cf update-buildpack java_buildpack -p <path to java-buildpack-offline-v3.8.1.zip> --enable -i 1
+---
+
+==== Step 2. Install Spring Cloud Dataflow (SCDF)
+Download SCDF for cloud foundry and dataflow shell jar files here
+
+TODO
+
+Run following commands on shell prompt
+---
+$ git clone https://github.com/kgshukla/Realtime-Streaming-DataMicroservices-AppMicroservices.git
+$ cd Realtime-Streaming-DataMicroservices-AppMicroservices/
+$ cf create-service p-redis shared-vm redis
+$ cf create-service p-rabbitmq standard rabbit
+---
+
+Replace below "path" to the cloud foundry jar file and run
+---
+$ cf push -f manifest-scdf.yml --no-start -p <path to spring-cloud-dataflow-server-cloudfoundry-1.0.0.RELEASE.jar file> -k 1500M
+$ cf start dataflow-server
+---
+
+==== Step 3. Compile rxjava-taxi-processor Processor Application
+Run following commands -
+---
+$ cd raxjava-taxi-processor
+$ mvn package
+$ cd staticdir
+$ cp ../target/spring-cloud-stream-rxjava-taxi-rabbit-1.1.1.RELEASE-exec.jar .
+$ cf push
+---
+
+Goto http://rxjavataxi-jar.local.pcfdev.io/ and copy the URL of the JAR File. We need it later to upload this jar file
+
+==== Step 4. Start SCDF Client
+Run following commands. Make sure you replace url of dataflow-server application if it is different - 
+---
+$ java -jar spring-cloud-dataflow-shell-1.0.0.RELEASE.jar
+server-unknown:>dataflow config server http://dataflow-server.local.pcfdev.io
+dataflow:>app import --uri http://bit.ly/stream-applications-rabbit-maven
+---
+Test a sample stream. We would deploy time "source" application that will output time every 1 second. The ouput would go to log "sink" application that would print whatever output it gets into its syslog.
+
+On dataflow prompt, run following -
+---
+dataflow:>stream create --name test --definition "time | log" --deploy
+---
+
+Wait for deployment. It might take some time to complete. Once completed run the following commands on shell prompt -
+
+---
+$ cf apps 
+Getting apps in org pcfdev-org / space SCDF as admin...
+OK
+
+name                                requested state   instances   memory   disk   urls
+dataflow-server                     started           1/1         2G       1G     dataflow-server.local2.pcfdev.io
+rxjavataxi-jar                      started           1/1         300M     512M   rxjavataxi-jar.local2.pcfdev.io
+dataflow-lithaemic-thew-test-log    started           1/1         400M     1G     dataflow-lithaemic-thew-test-log.local2.pcfdev.io
+dataflow-lithaemic-thew-test-time   started           1/1         400M     1G     dataflow-lithaemic-thew-test-time.local2.pcfdev.io
+
+$ cf logs dataflow-lithaemic-thew-test-log
+Connected, tailing logs for app dataflow-lithaemic-thew-test-log in org pcfdev-org / space SCDF as admin...
+
+2016-10-03T09:39:28.35+0800 [APP/0]      OUT 2016-10-03 01:39:28.353  INFO 21 --- [est.time.test-1] log.sink   : 10/03/16 01:39:28
+2016-10-03T09:39:29.35+0800 [APP/0]      OUT 2016-10-03 01:39:29.357  INFO 21 --- [est.time.test-1] log.sink   : 10/03/16 01:39:29
+2016-10-03T09:39:30.38+0800 [APP/0]      OUT 2016-10-03 01:39:30.379  INFO 21 --- [est.time.test-1] log.sink   : 10/03/16 01:39:30
+---
+
+Destroy the stream now 
+---
+dataflow:>stream destroy --name test
+---
+Register rxjava-taxi "Processor" application. Change the URL appropriately if it different in your PCFDev env.
+---
+dataflow:> app register --name rxjava-taxi --type processor --uri http://rxjavataxi-jar.local.pcfdev.io/spring-cloud-stream-rxjava-taxi-rabbit-1.1.1.RELEASE-exec.jar
+
+dataflow:> app info --id processor:rxjava-taxi
+---
+
+==== Step 5. Create and Run our Stream 
+
+Create Redis instance and an account (key). Note down the account details. We would need it later during our stream definition.
+---
+$ cf create-service p-redis shared-vm redis-taxi
+$ cf create-service-key redis-taxi redis-taxi-key
+$ cf service-key redis-taxi redis-taxi-key
+Getting key redis-taxi-key for service instance redis-taxi as admin...
+
+{
+ "host": "redis.local.pcfdev.io",
+ "password": "ed4c3e65-d092-4e3a-a37d-07e4589f7f86",
+ "port": 40829
+}
+---
+
+Create 4 Streams for our Taxi demo
+Find out IP address of your laptop. Do not use "localhost" in the --host property of ftp below
+Replace passsword, host for FTP definition as well as password, host and port for redis-pubsub application below
+---
+dataflow:> stream create --name TAXISTREAM_1 --definition "ftp --remote-dir=/tmp/SCDF --password=***** --host=192.168.177.1 --username=shuklk2 --auto-create-local-dir=true --filename-pattern=* --mode=lines --client-mode=PASSIVE --local-dir=/tmp/rxjava | rxjava-taxi | splitter --expression=#jsonPath(payload,'$.processingInfoString') | redis-pubsub --key=processingInfo_LATEST_DATA --password=f5fa6412-4417-4fab-b488-14e8a6454a29 --host=redis.local.pcfdev.io --port=35458"
+---
+Create second stream, which gets data out of TAXISTREAM_1's rxjava-taxi's output. Replace password, host and port information for redis-pubsub appropriately. Notice splitter here is extracting data for "freetaxiesListString" key  -
+---
+dataflow:> stream create --name TAXISTREAM_2 --definition ":TAXISTREAM_1.rxjava-taxi > splitter --expression=#jsonPath(payload,'$.freetaxiesListString') | redis-pubsub --key=freeTaxies_LATEST_DATA --password=ed4c3e65-d092-4e3a-a37d-07e4589f7f86 --host=redis.local2.pcfdev.io --port=40829"
+---
+Create third stream, which gets data out of TAXISTREAM_1's rxjava-taxi's output. Replace password, host and port information for redis-pubsub appropriately. Notice splitter here is extracting data for "top10routesString" key  -
+---
+dataflow:> stream create --name TAXISTREAM_3 --definition ":TAXISTREAM_1.rxjava-taxi > splitter --expression=#jsonPath(payload,'$.top10routesString') | redis-pubsub --key=top10Routes_LATEST_DATA --password=ed4c3e65-d092-4e3a-a37d-07e4589f7f86 --host=redis.local2.pcfdev.io --port=40829" 
+---
+Lastly create a stream that is just printing data received from TAXISTREAM_1's rxjava-taxi to syslog
+---
+dataflow:> stream create --name TAXISTREAM_4 --definition ":TAXISTREAM_1.rxjava-taxi > log"
+---
+
+Once these are created, you need to deploy them one by one
+---
+dataflow:> stream deploy --name TAXISTREAM_4
+dataflow:> stream deploy --name TAXISTREAM_3
+dataflow:> stream deploy --name TAXISTREAM_2
+dataflow:> stream deploy --name TAXISTREAM_1
+---
+Make sure, all are deployed by checking their "status" column
+---
+dataflow:> stream list
+---
+Goto shell prompt and get the name of the "log" application
+---
+$ cf apps;
+Getting apps in org pcfdev-org / space SCDF as admin...
+OK
+
+name                                                        requested state   instances   memory   disk   urls
+dataflow-server                                             started           1/1         2G       1.5G   dataflow-server.local.pcfdev.io
+rxjavataxi-jar                                              started           1/1         300M     512M   rxjavataxi-jar.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_4-log            started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_4-log.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_3-redis-pubsub   started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_3-redis-pubsub.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_3-splitter       started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_3-splitter.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_2-redis-pubsub   started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_2-redis-pubsub.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_2-splitter       started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_2-splitter.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_1-redis-pubsub   started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_1-redis-pubsub.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_1-splitter       started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_1-splitter.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_1-rxjava-taxi    started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_1-rxjava-taxi.local.pcfdev.io
+dataflow-nonconvective-sabotage-TAXISTREAM_1-ftp            started           1/1         400M     1G     dataflow-nonconvective-sabotage-TAXISTREAM_1-ftp.local.pcfdev.io
+---
+Just print the logs, and you would notice that the output changes after every 10 seconds. Whatever be the output from rxjava-taxi application, it is displayed in syslog for the log application
+---
+$ cf logs dataflow-nonconvective-sabotage-TAXISTREAM_4-log
+2016-10-03T11:56:22.47+0800 [APP/0]      OUT 2016-10-03 03:56:22.469  INFO 18 --- [.TAXISTREAM_4-1] log.sink                                 : {"processingInfoString":"1173380|28374|616|172|","freetaxiesListString":"2789D8398CBD60E51BF7D4BC78F3D7A9,40.799335,-73.935265|27A66351B6F3872FBF696EB66FFB983C,40.761326,-73.986885|2AF58A5DD84CB1BDF128F20C7D7D24B2,40.749386,-73.992012|2DA69B9659AF1B087A3BC7D5FEF3B2B7,40.682144,-74.000290|2DE23D4516D572D83A6D8F0CD7DF13F7,40.772694,-73.952477|2E34B3CAEB763EA98BAA700EFFC78E3D,40.851303,-73.934013|2E8F02FAEDF24344D4DF461081F69719,40.737156,-73.983330|2FCB26B1A3EE7E5B8B457D74A5CEAEB8,40.786713,-73.954552|32697E6BE565538CAEB0B6421C1F6813,40.782051,-73.975670|338AA5E5CCF2B215438CE6EB2069D8F0,40.723927,-73.992561|33C5CA859B7EB35E11E63A777670DBEB,40.710972,-74.008858|36EDC01D57A6489E2DEE50734ECB327D,40.767937,-73.956024|38114212AD7C2127DE737863C465656D,40.734066,-73.989166|385FC5F391764A5E2439617893CD939D,40.788887,-73.952011|389B87D436761A3DB881F7DFCD141535,40.772522,-73.958641|39367BFD20B0D0B4EE51F070A555BF98,40.769001,-73.951973|3AB9079A089EE33D7FA7259B482770B4,40.784130,-73.977638|3B0D32434F9E18BC4040C1E6C79F4240,40.768196,-73.955727|3B6AE3CF05F34ADC91DC68D20F2EB913,40.768940,-73.985359|3B7509562B5CAF1713351D0E0C393739,40.710789,-74.005951|3C1712C40B216B3D1B658BE671C4AC1F,40.731506,-74.000946|3CACE6A20EB462544D4F0F3DA1303EDC,40.776089,-73.955498|3F390CB15E5448BDD56F97A21C564327,40.743092,-73.919724|40276740E070731293B69358A15550BC,40.671528,-73.987862|402C4787A75C94AD08745DCA8DE9014A,40.761875,-73.983124|40C58619FCA4B6298338F0D9EFB252ED,40.748688,-73.952225|4241EAF272062B8DB62C39351EDBA25A,40.710678,-74.009232|43EE741BA1397FECCE21070A51723179,40.751156,-73.990891|45E4FB0397F8D1F087B629C024ED263E,40.712536,-73.991379|479D0A450FE2536023A99C619635D570,40.760925,-73.990623|497948F23936CDE084CDE55FEC259412,40.699760,-73.939880|49A0A4465DC7BA419D2C96A642DE1471,40.768486,-73.924644|49B8CFC71F0ED39C7B3F68F603DB9D05,40.707893,-74.003677|4A18D911DE22F561086D76262E6AE42E,40.686440,-73.974586|4BA6D1DB19341443B959A08C41489864,40.722054,-73.996529|4CF1844ACD94BB5936B1774FC8B671C2,40.777954,-73.947968|4D24F4D8EF35878595044A52B098DFD2,40.729916,-73.957588|4E9A475A4114E192E07BE354E36C1B60,40.709850,-73.991943|4FDF7467A2038D09DC1089EA72CFBAD2,40.744904,-73.976212|520630AB0295AEF2B625E52300F46513,40.766411,-73.983650|54E0A7E84EAFDF6D0C70DC8E8A272FD9,40.739216,-73.982986|54EC3864DD7CB3DAEB7FF9D200EA82D4,40.754921,-73.921211|582CAF46446FA03320E5178E7BEC1E86,40.774971,-73.953064|59A0C16E586FBDD9CBA755393BC8B279,40.808048,-73.946213|5D1461EE35FACA225F7241668F963419,40.731785,-73.982170|5D2AF934389358F121B59D6DD4A33DCA,40.725376,-73.940636|5D506A80496D56D8E4F6BAA159C76DA5,40.737877,-74.009598|60B87DBDF025AE348F8286CAFE999F2C,40.676746,-73.963562|6133F218393DE520E73324B1822E0E25,40.736462,-73.987099|6204D2988E75007ADDC410D3AD59CD01,40.753407,-74.026077|","top10routesString":"{\"route\":\"c:78.82_to_c:78.82\",\"numTrips\":\"120\"}|{\"route\":\"c:78.82_to_c:78.83\",\"numTrips\":\"108\"}|{\"route\":\"c:78.82_to_c:78.81\",\"numTrips\":\"92\"}|{\"route\":\"c:78.83_to_c:78.82\",\"numTrips\":\"90\"}|{\"route\":\"c:78.82_to_c:79.81\",\"numTrips\":\"86\"}|{\"route\":\"c:78.83_to_c:78.83\",\"numTrips\":\"80\"}|{\"route\":\"c:79.80_to_c:79.80\",\"numTrips\":\"76\"}|{\"route\":\"c:78.83_to_c:79.81\",\"numTrips\":\"73\"}|{\"route\":\"c:78.81_to_c:78.81\",\"numTrips\":\"71\"}|{\"route\":\"c:78.82_to_c:77.81\",\"numTrips\":\"69\"}|"}
+---
+
+Once completed, you could undeploy all the streams, other than TAXISTREAM_1 -
+---
+dataflow:>stream undeploy --name TAXISTREAM_4
+dataflow:>stream undeploy --name TAXISTREAM_3
+dataflow:>stream undeploy --name TAXISTREAM_2
+---
