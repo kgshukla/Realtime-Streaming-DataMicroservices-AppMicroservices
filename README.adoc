@@ -23,7 +23,7 @@ Apps are built using Microservices pattern and utilizes Spring Cloud Suite (conf
 Stream of taxi data comes in real time for new york region. Region is to be divided into areas, each measuring 300mx300m. Following questions needs to be solved in real time
 
 
-image::images/problemstmt.png[]
+image::images/problemstmt.jpg[]
 
 
 Question 1 - For every 10 seconds, find out the top 10 routes where taxies are plying the most from one area to another area.
