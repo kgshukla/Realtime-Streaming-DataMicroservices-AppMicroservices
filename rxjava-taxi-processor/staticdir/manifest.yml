@@ -1,0 +1,5 @@
+applications:
+- name: rxjavataxi-jar
+  memory: 300M
+  instances: 1
+  host: rxjavataxi-jar
