@@ -202,10 +202,16 @@ Getting key redis-taxi-key for service instance redis-taxi as admin...
  "port": 40829
 }
 ----
+Download the data file that we would be streaming here. It is around 50MB in size and put under an empty directory. I've used /tmp/SCDF to store this file.
 
-Create 4 Streams for our Taxi demo
+http://taxi-data-ks.cfapps.io/sorted_data.csv
+
+Create 4 Streams for our Taxi demo. These streams could be visualized better here. 
+
+image::images/stream_definition.png[]
+
 Find out IP address of your laptop. Do not use "localhost" in the --host property of ftp below
-Replace passsword, host for FTP definition as well as password, host and port for redis-pubsub application below
+Replace passsword, host, remoteDir for FTP definition as well as password, host and port for redis-pubsub application below
 ----
 dataflow:> stream create --name TAXISTREAM_1 --definition "ftp --remote-dir=/tmp/SCDF --password=***** --host=192.168.177.1 --username=shuklk2 --auto-create-local-dir=true --filename-pattern=* --mode=lines --client-mode=PASSIVE --local-dir=/tmp/rxjava | rxjava-taxi | splitter --expression=#jsonPath(payload,'$.processingInfoString') | redis-pubsub --key=processingInfo_LATEST_DATA --password=f5fa6412-4417-4fab-b488-14e8a6454a29 --host=redis.local.pcfdev.io --port=35458"
 ----
