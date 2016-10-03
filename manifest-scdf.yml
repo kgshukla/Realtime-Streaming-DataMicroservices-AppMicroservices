@@ -1,0 +1,24 @@
+---
+instances: 1
+memory: 2048M
+applications:
+  - name: dataflow-server
+    host: dataflow-server
+    services:
+      - redis
+      - rabbit
+    env:
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL: https://api.local.pcfdev.io
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_ORG: pcfdev-org
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SPACE: SCDF
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_DOMAIN: local.pcfdev.io
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_USERNAME: admin
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD: admin
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SKIP_SSL_VALIDATION: true
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_STREAM_SERVICES: rabbit
+      MAVEN_REMOTE_REPOSITORIES_REPO1_URL: https://repo.spring.io/libs-snapshot
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_DISK: 512
+      SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_STREAM_BUILDPACK: java_buildpack
+      spring.cloud.deployer.cloudfoundry.stream.memory: 400
+      spring.cloud.dataflow.features.tasks-enabled: true
+      spring.cloud.dataflow.features.streams-enabled: true
