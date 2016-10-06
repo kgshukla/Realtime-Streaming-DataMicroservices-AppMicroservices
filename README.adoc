@@ -123,6 +123,7 @@ $ cf create-service p-redis shared-vm redis
 $ cf create-service p-rabbitmq standard rabbit
 ----
 
+Check if SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL value is ok in your environment in manifest-scdf.yml file. Change the URL if it is differnt in yours.
 Replace below "path" to the cloud foundry jar file and run
 ----
 $ cf push -f manifest-scdf.yml --no-start -p <path to spring-cloud-dataflow-server-cloudfoundry-1.0.0.RELEASE.jar file> -k 1500M
