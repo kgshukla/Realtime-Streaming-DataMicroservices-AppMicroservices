@@ -292,7 +292,7 @@ All the above mentioned services are part of Spring Cloud Services. They are pro
 
 Below diagram shows how we are architecting the solution. Eventservice and TaxiService registers to Configuration Server and Service Registry while Aggservice registers to all three.
 
-image::images/app_microservices.png
+image::images/app_microservices.png[]
 
 ==== Step 0 - Clone the repository again
 ----
@@ -499,9 +499,9 @@ buildpack: php_buildpack
 
 Copy http://iot-taxi.local.pcfdev.io and open in web browser. You must be able to see all data now. Click on "Event Processing" and "Free Taxies" button to view the data.
 
-image::images/streaming_img1.png
+image::images/streaming_img1.png[]
 
-image::images/streaming_img3.png
+image::images/streaming_img3.png[]
 
 ==== Step 4 - Try out different use cases
 
