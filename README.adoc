@@ -290,6 +290,10 @@ Completing Part 1 is necessary before progressing with Part 2. Reason being we w
 
 All the above mentioned services are part of Spring Cloud Services. They are provided out of the box in Pivotal Cloud Foundry.
 
+Below diagram shows how we are architecting the solution. Eventservice and TaxiService registers to Configuration Server and Service Registry while Aggservice registers to all three.
+
+image::images/app_microservices.png
+
 ==== Step 0 - Clone the repository again
 ----
 $ git clone https://github.com/kgshukla/Realtime-Streaming-DataMicroservices-AppMicroservices.git
@@ -301,8 +305,11 @@ $ cd Realtime-Streaming-DataMicroservices-AppMicroservices/
 Fork following repository from github so that you could provide your own configuration information - https://github.com/kgshukla/iot-taxi-config-repo.git
 
 Perform following to fork the repository
+
 1. Go to https://github.com/kgshukla/iot-taxi-config-repo.git
+
 2. Click on "Fork" button on the top-right corner
+
 3. Clone the forked repository on your laptop using below command. Replace "xxxx" with your github username
 
 ----
@@ -493,6 +500,7 @@ buildpack: php_buildpack
 Copy http://iot-taxi.local.pcfdev.io and open in web browser. You must be able to see all data now. Click on "Event Processing" and "Free Taxies" button to view the data.
 
 image::images/streaming_img1.png
+
 image::images/streaming_img3.png
 
 ==== Step 4 - Try out different use cases
@@ -506,7 +514,9 @@ $ cf stop eventservice-iot
 Also, circuit breaker would come into action and it would show red color as shown in following link:images/circuit_breaker.pdf[file].
 
 You should see something like this
+
 image::images/streaming_img2.png[]
+
 
 2. Scale eventservice to 2 instances and see how service-registry registers both instances. Goto service-registry UI to see the registration
 
