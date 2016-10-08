@@ -1,0 +1,160 @@
+<html>
+  <head>
+   <!-- <meta http-equiv="refresh" content="10" > -->
+    <!--Load the AJAX API-->
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript">
+    
+    // Load the Visualization API and the piechart package.
+    google.load('visualization', '1', {'packages':['table']});
+    google.load('visualization', '1', {'packages':['corechart']});
+    google.load('visualization', '1', {'packages': ['map']});
+
+      
+    // Set a callback to run when the Google Visualization API is loaded.
+    google.setOnLoadCallback(drawTaxiLatestTable);
+    google.setOnLoadCallback(drawMapFreeTaxi);
+
+    function drawTaxiLatestTable() {
+      var formData = {type:"TABLE"};
+      var jsonData = $.ajax({
+          url: "getTaxiData.php",
+          data: formData,
+          type: "POST",
+          dataType:"json",
+          async: false
+          }).responseText;
+         
+      // Create our data table out of JSON data loaded from server.
+      var tabledata = new google.visualization.DataTable(jsonData);
+
+      var options = {
+        width: 800,
+        height: 250,
+        title: 'Top Areas by number of rides completed'
+      };
+
+      // Instantiate and draw our chart, passing in some options.
+      var table = new google.visualization.Table(document.getElementById('chart_div'));
+      table.draw(tabledata, options);
+      // google.visualization.events.addListener(table, 'select', selectHandler);
+    }
+
+
+    function drawMapFreeTaxi () {
+      var formData3 = {type:"FREETAXIDATA"};
+      var jsonData3 = $.ajax({
+          url: "getTaxiData.php",
+          data: formData3,
+          type: "POST",
+          dataType:"json",
+          async: false
+          }).responseText;
+         
+      // Create our data table out of JSON data loaded from server.
+      var tabledata3 = new google.visualization.DataTable(jsonData3);
+
+      var options3 = {
+        zoomLevel: 12,
+        showTip: true,
+        useMapTypeControl: true,
+     	mapType: 'normal'
+      };
+      var map3 = new google.visualization.Map(document.getElementById('mapfree_div'));
+
+      map3.draw(tabledata3, options3);
+   }
+
+
+
+    </script>
+    <script type="text/javascript" src="jQuery.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function(){
+                setInterval(drawMapFreeTaxi, 10000);
+                setInterval(drawTaxiLatestTable, 10000);
+        });
+    </script>
+
+
+  </head>
+
+  <body>  
+     <table align="left">
+      <tr valign="top">
+        <td style="width: 50%;">
+    	  <img src="/Pivotal-Logo.jpg" style="width:300px;height:100px"/>
+        </td>
+        <td style="width: 50%;">
+  	  <div class="row-fluid">
+           <div class="span12" style="padding: 10px 0px;">
+             <h1>Real Time Streaming Demo</h1>
+           </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+    This demo showcases power of PCF, Spring Cloud Dataflow, RxJava, Spring Cloud Streams and Redis.
+    <ul>
+      <li>Spring Cloud Dataflow receives a stream of taxi data. Sample data can be viewed <a href="sampledata.html" target="_blank">here</a>.</li>
+      <li>Goal of the demo is to quickly evaluate top 10 busiest area based on taxi pickup and dropoff information received from streams.</li>
+      <li>Each area is a square 1kmx1km.</li>
+      <li>Data needs to be refreshed every 10 seconds.</li>
+      <li>Data is not clean. Drivers could give incorrect information like wrong fare, forgot to enter pickup location, wrong latitude/longitude etc</li>
+    </ul>
+    Below you could see <u>number of streams being processed</u>, <u>top 10 areas and details</u>. <b>ALL IN REAL TIME</b>.
+
+    <!--Div that will hold the charts-->
+<br/>
+    <br/>
+    <br/>
+    <table>
+      <tr valign="top">
+        <td style="width: 27%;">
+    	  <input type="button" value="Problem Statement" onclick="location.href='/index.html'"/>
+        </td>
+        <td style="width: 20%;">
+    	  <input type="button" value="Events Processing(RT)" onclick="location.href='/taxidata.html'"/>
+        </td>
+       <td style="width: 20%;">
+    	  <input type="button" value="Free Taxies/Top Routes(RT)" onclick="location.href='/freetaxiesandroutes.html'"/>
+        </td>
+      </tr>
+    </table>
+
+
+     <br/>
+     <br/>
+     <br/>
+     <b><u>Free Taxies and their Location (only top 50)</u></b>
+     <br/>
+    <table>
+      <tr valign="top">
+        <td>
+          <div id="mapfree_div" style="height: 500px; width: 900px"></div>
+        </td>
+    </tr>
+    </table>
+    <br/>
+    <br/>
+    <b><u>Top 10 Areas where taxies are running </u></b>
+    <table>
+      <tr valign="top">
+        <td style="width: 70%;">
+          <div id="chart_div"></div>
+        </td>
+      </tr>
+    </table>
+    <br/>
+    <br/>
+  </body>
+</html>

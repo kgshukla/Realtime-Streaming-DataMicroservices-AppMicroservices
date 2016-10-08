@@ -276,3 +276,250 @@ dataflow:>stream undeploy --name TAXISTREAM_4
 dataflow:>stream undeploy --name TAXISTREAM_3
 dataflow:>stream undeploy --name TAXISTREAM_2
 ----
+
+
+=== Part 2 - Building Application Microservices
+
+Completing Part 1 is necessary before progressing with Part 2. Reason being we want some data to be available in redis-server. We cannot expose our database, in this case Redis, and it's schema to everyone. Instead we would be creating application microservices and expose APIs. There are few things we need to understand here -
+
+1. We need to register all our microservices to a centralized service registery. Why? So that anyone who wants to use APIs register his own microservice to service registry and get access to all other registered microservices instantly. 
+
+2. We need to make sure that we give some control to users who are going to use our microservice. If our microservice goes down, then we want them to take some default action. Think about try catch block in java. The difference is that user might not want to execute code in try block if he knows before hand that the microservice is down. We would use circuit-breakers here. 
+
+3. We would externalize all our variables to an external configuration server and register all our microservice with it. When our microservices are booting up, they would talk to configuration server and get the all relevant variables for the microservice and the relevant environment they are getting provisioned into (think profiles in spring). One clear example here is that we want to provide redis database information via configuration server.
+
+All the above mentioned services are part of Spring Cloud Services. They are provided out of the box in Pivotal Cloud Foundry.
+
+==== Step 0 - Clone the repository again
+----
+$ git clone https://github.com/kgshukla/Realtime-Streaming-DataMicroservices-AppMicroservices.git
+$ cd Realtime-Streaming-DataMicroservices-AppMicroservices/
+----
+
+==== Step 1 - Create Spring Cloud Services Instances
+
+Fork following repository from github so that you could provide your own configuration information - https://github.com/kgshukla/iot-taxi-config-repo.git
+
+Perform following to fork the repository
+1. Go to https://github.com/kgshukla/iot-taxi-config-repo.git
+2. Click on "Fork" button on the top-right corner
+3. Clone the forked repository on your laptop using below command. Replace "xxxx" with your github username
+
+----
+$ git clone https://github.com/xxxx/iot-taxi-config-repo.git
+----
+
+Run following command on terminal to get redis database information
+----
+$ cf service-key redis-taxi redis-taxi-key
+Getting key redis-taxi-key for service instance redis-taxi as admin...
+
+{
+ "host": "redis.local.pcfdev.io",
+ "password": "ed4c3e65-d092-4e3a-a37d-07e4589f7f86",
+ "port": 40829
+}
+----
+
+Open application.yml file in your forked repository and replace redis_host, redis_port and redis_password with the above information. Once done, run the following commands to commit the changes in your github repository
+----
+$ git add application.yml
+$ git commit -m "changing redis host, port and password information
+$ git push origin master
+----
+
+Now, we would create configuration server, service registry and circuit-breaker instances in our PCF Dev. Replace "xxxx" with your github username.
+----
+$ cf create-service p-config-server standard config-server -c '{"git": { "uri": "https://github.com/kgshukla/iot-taxi-config-repo.git" } }'
+Creating service instance config-server in org pcfdev-org / space SCDF as admin...
+OK
+
+Create in progress. Use 'cf services' or 'cf service config-server' to check operation status.
+----
+
+Create service registry and circuit-breaker as well
+----
+$ cf create-service p-service-registry standard service-registry
+$ cf create-service p-circuit-breaker-dashboard standard circuit-breaker
+----
+
+Make sure that these services are up and running before continuing. Run following command to know the status of "last operation" column. It should be "Create Succeded". If not, then wait until all services are in succeeded status.
+----
+$ cf services
+Getting services in org pcfdev-org / space SCDF as admin...
+OK
+
+name               service                       plan        bound apps        last operation
+redis              p-redis                       shared-vm   dataflow-server   create succeeded
+rabbit             p-rabbitmq                    standard    dataflow-server   create succeeded
+redis-taxi         p-redis                       shared-vm                     create succeeded
+config-server      p-config-server               standard                      create succeeded
+service-registry   p-service-registry            standard                      create succeeded
+circuit-breaker    p-circuit-breaker-dashboard   standard                      create succeeded
+----
+
+Now, what we are going to do is a "hack" and is never recommended in actual PCF setup. Reason being that, we are running PCF on our laptop and it does not have so much memory that we could run "everything". So we are going to tune down "memory" for instances created for our last three services. Run following commands -
+----
+$ cf target -o p-spring-cloud-services -s instances
+$ cf apps
+Getting apps in org p-spring-cloud-services / space instances as admin...
+OK
+
+name                                           requested state   instances   memory   disk   urls
+config-2ace9b60-f896-4cb7-bf07-00db58d1f3eb    started           1/1         1G       512M   config-2ace9b60-f896-4cb7-bf07-00db58d1f3eb.local.pcfdev.io
+eureka-86b2a02f-73cf-4359-b17e-5c22eed4055a    started           1/1         1G       512M   eureka-86b2a02f-73cf-4359-b17e-5c22eed4055a.local.pcfdev.io
+hystrix-793fdd96-1294-49fe-a3e8-de9dd26f3d91   started           1/1         1G       512M   hystrix-793fdd96-1294-49fe-a3e8-de9dd26f3d91.local.pcfdev.io
+turbine-793fdd96-1294-49fe-a3e8-de9dd26f3d91   started           1/1         1G       512M   turbine-793fdd96-1294-49fe-a3e8-de9dd26f3d91.local.pcfdev.io
+----
+
+Now we are going to scale each application to 512MB of memory. Replace each app instance name with yours
+----
+$ cf scale eureka-86b2a02f-73cf-4359-b17e-5c22eed4055a -m 512M
+This will cause the app to restart. Are you sure you want to scale eureka-86b2a02f-73cf-4359-b17e-5c22eed4055a?> y
+
+$ cf scale hystrix-793fdd96-1294-49fe-a3e8-de9dd26f3d91 -m 512M
+This will cause the app to restart. Are you sure you want to scale hystrix-793fdd96-1294-49fe-a3e8-de9dd26f3d91?> y
+
+$ cf scale turbine-793fdd96-1294-49fe-a3e8-de9dd26f3d91 -m 512M
+This will cause the app to restart. Are you sure you want to scale turbine-793fdd96-1294-49fe-a3e8-de9dd26f3d91?> y
+
+$ cf scale config-2ace9b60-f896-4cb7-bf07-00db58d1f3eb -m 512M
+This will cause the app to restart. Are you sure you want to scale config-2ace9b60-f896-4cb7-bf07-00db58d1f3eb?> y
+
+----
+
+==== Step 2 - Compile code and deploy microservices
+
+Compile code as follows - 
+----
+$ cd Realtime-Streaming-DataMicroservices-AppMicroservices/
+$ mvn package -DskipTests
+----
+
+==== Step 3 - Push all your microservices
+
+Alright, now is the time to push your applications one by one. We will first push taxiservice. Make sure CF_TARGET value is coorect. You could find target via running "$ cf target" on your terminal. 
+----
+$ cat manifest-taxiservice.yml 
+---
+instances: 1
+memory: 400M
+applications:
+  - name: taxiservice-iot
+    host: taxiservice-iot
+    path: taxiservice/target/taxiservice-1.0-SNAPSHOT.jar
+    services:
+      - config-server
+      - service-registry
+    env:
+      SPRING_PROFILES_ACTIVE: pcf
+      CF_TARGET: https://api.local.pcfdev.io
+----
+Notice that this application is binded to two services config-server and service-registry. This indicates that this application is going to talk to config-server to get all relevant env variables (which includes redis host, password and port) and it is going to register itself in service-registry.
+
+----
+$ cf target -o pcfdev-org -s SCDF
+$ cf push -f manifest-taxiservice.yml
+....
+....
+Showing health and status for app taxiservice-iot in org pcfdev-org / space SCDF as admin...
+OK
+
+requested state: started
+instances: 1/1
+usage: 400M x 1 instances
+urls: taxiservice-iot.local.pcfdev.io
+last uploaded: Sat Oct 8 10:07:30 UTC 2016
+stack: cflinuxfs2
+buildpack: java-buildpack=v3.8.1-offline-https://github.com/cloudfoundry/java-buildpack.git#29c79f2 java-main open-jdk-like-jre=1.8.0_91-unlimited-crypto open-jdk-like-memory-calculator=2.0.2_RELEASE spring-auto-reconfiguration=1.10.0_RELEASE
+----
+
+Once taxiservice is deployed, copy the url (as mentioned in the output above), open a browser and type following - http://taxiservice-iot.local.pcfdev.io/routes/top10routes. It should show you the top 10 routes. This indicates that your taxiservice has received redis credentials properly from config-server and able to show information. Now we push eventservice. Make sure you check CF_TARGET value is set fine in manifest-eventservice.yml file.
+
+----
+$ cf push -f manifest-eventservice.yml
+----
+
+Once it is deployed, open your PCFDev web browser. Use following link - https://console.local.pcfdev.io/2/ and use admin/admin credentials. Follow this link:images/service_registry.pdf[file] to know where to click in the browser.
+
+You would notice that both taxiservice and eventservice have registered to service-registry. We would now make aggregator service to use them via application name, rather than a fixed URL.
+
+Open "aggregatorservice/src/main/java/io/pivotal/data/aggregatorservice/service/AggregatorService.java" and notice following code -
+
+----
+@HystrixCommand(fallbackMethod = "fallbackEventCalls")
+public long getTotalEvents() {
+    return restTemplate.getForObject("https://EVENTSERVICE-IOT-V1/events/total", Long.class);
+}
+                            
+@HystrixCommand(fallbackMethod = "fallbackEventCalls")
+public long getMissedEvents() {
+    return restTemplate.getForObject("https://EVENTSERVICE-IOT-V1/events/missed", Long.class);
+}
+----
+Two things are important here -
+1. agg service is calling EventService just by the name it has registered in service-registry, ie EVENTSERVICE-IOT-V1, it is not doing a hard coded URL binding to the service.
+2. If for some reason this call fails, "fallbackEventCalls" method will kick in by circuit breaker and return whatever is coded in the method until circuit breaker figures out that eventservice is up and running again.
+
+Let's push aggservice now. Make sure CF_TARGET value in manifest-aggservice.yml file is set properly.
+----
+$ cf push -f manifest-aggservice.yml
+
+create a user provided service. Make sure you use correct url of aggservice as provided in your environment. This will be used by webapp.
+
+$cf create-user-provided-service agg_service_iot -p '{"AGGSERVICE_URL":"aggservice-iot.local.pcfdev.io"}'
+Creating user provided service agg_service_iot in org pcfdev-org / space SCDF as admin...
+OK
+----
+
+Now push the final webapp
+----
+$ cd webapp_php
+$ cf push -b php_buildpack
+...
+...
+Showing health and status for app iot-taxi in org pcfdev-org / space SCDF as admin...
+OK
+
+requested state: started
+instances: 1/1
+usage: 356M x 1 instances
+urls: iot-taxi.local.pcfdev.io
+last uploaded: Sat Oct 8 10:33:27 UTC 2016
+stack: cflinuxfs2
+buildpack: php_buildpack
+----
+
+Copy http://iot-taxi.local.pcfdev.io and open in web browser. You must be able to see all data now. Click on "Event Processing" and "Free Taxies" button to view the data.
+
+image::images/streaming_img1.png
+image::images/streaming_img3.png
+
+==== Step 4 - Try out different use cases
+
+1. Stop eventservice and see what your UI shows. It should show data that is returned in "fallbackEventCalls" method.
+
+----
+$ cf stop eventservice-iot
+----
+
+Also, circuit breaker would come into action and it would show red color as shown in following link:images/circuit_breaker.pdf[file].
+
+You should see something like this
+image::images/streaming_img2.png[]
+
+2. Scale eventservice to 2 instances and see how service-registry registers both instances. Goto service-registry UI to see the registration
+
+----
+$ cf start eventservice-iot
+$ cf scale eventservice-iot -i 2
+----
+
+3. Start realtime streaming one more time. Move the downloaded file "sorted_data.csv" to "sorted_data2.csv". I had downloaded this to /tmp/SCDF directory. Since your TAXISTREAM_1 is still active and constantly monitoring the source directory, any new file added to the directory would start processing it automatically as it is added. You could see data movement under "Event Processing" button on your web app.
+
+----
+$ cd /tmp/SCDF
+$ mv sorted_data.csv sorted_data2.csv
+----
+
+This completes the workshop. 

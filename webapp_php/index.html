@@ -1,0 +1,80 @@
+<html>
+    <head>
+
+    </head>
+
+    <body>  
+        <table align="left">
+            <tr valign="top">
+                <td style="width: 50%;">
+                    <img src="/Pivotal-Logo.jpg" style="width:300px;height:100px"/>
+                </td>
+                <td style="width: 50%;">
+                    <div class="row-fluid">
+                        <div class="span12" style="padding: 10px 0px;">
+                            <h1>Real Time Streaming Demo</h1>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <br/>
+        <br/>
+        <br/>
+        <br/>
+        <br/>
+        <br/>
+        <br/>
+        This demo showcases power of PCF, Spring Cloud Dataflow, Spring Cloud Service and Redis.
+        <ul>
+            <li>Spring Cloud Dataflow receives a stream of taxi data. Sample data can be viewed <a href="sampledata.html" target="_blank">here</a>.</li>
+            <li>Goal of the demo is to quickly evaluate top 10 busiest area based on taxi pickup and dropoff information received from streams.</li>
+            <li>Each area is a square 1kmx1km.</li>
+            <li>Data needs to be refreshed every 10 seconds.</li>
+            <li>Data is not clean. Drivers could give incorrect information like wrong fare, forgot to enter pickup location, wrong latitude/longitude etc</li>
+        </ul>
+        Below you could see <u>number of streams being processed</u>, <u>top 10 areas and details</u>. <b>ALL IN REAL TIME</b>.
+
+        <!--Div that will hold the charts-->
+        <br/>
+        <br/>
+        <br/>
+        <table>
+            <tr valign="top">
+                <td style="width: 27%;">
+                    <input type="button" value="Problem Statement" onclick="location.href='/index.html'"/>
+                </td>
+                <td style="width: 20%;">
+                    <input type="button" value="Events Processing(RT)" onclick="location.href='/taxidata.html'"/>
+                </td>
+                <td style="width: 20%;">
+                    <input type="button" value="Free Taxies/Top Routes(RT)" onclick="location.href='/freetaxiesandroutes.html'"/>
+                </td>
+            </tr>
+        </table>
+        <br/>
+        <br/>
+        <img src="/problemstmt.jpg" style="width:1000px;height:500px"/>
+        <br/>
+        <br/>
+        <br/>
+        <b><u>Complete Solution Architecture</u></b>
+        <br/>
+        <img src="/solarchitect.png" style="width:1000px;height:500px"/>
+        <br/>
+        <br/>
+        <br/>
+        <b><u>Solution Architecture for Data Microservices</u></b>
+        <br/>
+        <img src="/data_microservices.png" style="width:1000px;height:500px"/>
+        <br/>
+        <br/>
+        <br/>
+        <b><u>Solution Architecture for Application Microservices</u></b>
+        <br/>
+        <img src="/app_microservices.png" style="width:1000px;height:500px"/>
+        <br/>
+        <br/>
+    </body>
+</html>

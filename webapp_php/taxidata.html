@@ -1,0 +1,250 @@
+<html>
+  <head>
+   <!-- <meta http-equiv="refresh" content="10" > -->
+    <!--Load the AJAX API-->
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript">
+    
+    // Load the Visualization API and the piechart package.
+    google.load('visualization', '1', {'packages':['table']});
+    google.load('visualization', '1', {'packages':['corechart']});
+    google.load('visualization', '1', {'packages': ['map']});
+
+      
+    // Set a callback to run when the Google Visualization API is loaded.
+    google.setOnLoadCallback(drawStreamsLineChart);
+    google.setOnLoadCallback(drawSparkProcessingTimeChart);
+    google.setOnLoadCallback(drawDataQualityChart);
+
+    function drawSparkProcessingTimeChart() {
+        var formData1 = {type:"SPARKPROCCHART"};
+        var jsonData1 = $.ajax({
+            url: "getTaxiData.php",
+            data: formData1,
+            type: "POST",
+            dataType:"json",
+            async: false
+        }).responseText;
+                             
+        // Create our data table out of JSON data loaded from server.
+        var tabledata1 = new google.visualization.DataTable(jsonData1);
+
+        var options = {
+            width: 800,
+            height: 400,
+            title: 'RxJava (Spring Cloud Stream Processor) Processing Time',
+        };
+
+        // Instantiate and draw our chart, passing in some options.
+        var table1 = new google.visualization.LineChart(document.getElementById('chart_div4'));
+        table1.draw(tabledata1, options);
+        updateSparkProcChart(tabledata1, table1, options);
+    }
+
+    function updateSparkProcChart(data, chart, options) {
+        var formData1 = {type:"SPARKPROCCHART"};
+        var jsonData1 = $.ajax({
+            url: "getTaxiData.php",
+            data: formData1,
+            type: "POST",
+            dataType:"json",
+            async: false
+        }).responseText;
+                     
+        var tabledata1 = new google.visualization.DataTable(jsonData1);
+        data.addRow([tabledata1.getValue(0,0), tabledata1.getValue(0,1)]);
+        chart.draw(data, options);
+                                                
+        setTimeout(function(){updateSparkProcChart(data, chart, options)}, 10000);
+    }
+
+    function drawStreamsLineChart() {
+        var formData1 = {type:"STREAMSCHART"};
+        var jsonData1 = $.ajax({
+            url: "getTaxiData.php",
+            data: formData1,
+            type: "POST",
+            dataType:"json",
+            async: false
+        }).responseText;
+                         
+        // Create our data table out of JSON data loaded from server.
+        var tabledata1 = new google.visualization.DataTable(jsonData1);
+
+        var options = {
+            width: 800,
+            height: 400,
+            title: 'Processing Data Information',
+            series: {
+                // Gives each series an axis name that matches the Y-axis below.
+                0: {targetAxisIndex: 0},
+                1: {targetAxisIndex: 1}
+            },
+            vAxes: {
+                // Adds labels to each axis; they don't have to match the axis names.
+                0: {title: 'Total Streams Processed'},
+                1: {title: 'Streams Lacking Data'}
+            },
+        };
+
+        // Instantiate and draw our chart, passing in some options.
+        var table1 = new google.visualization.LineChart(document.getElementById('chart_div1'));
+        table1.draw(tabledata1, options);
+        updateStreamsChart(tabledata1, table1, options);
+    }
+
+    function updateStreamsChart(data, chart, options) {
+        var formData1 = {type:"STREAMSCHART"};
+        var jsonData1 = $.ajax({
+            url: "getTaxiData.php",
+            data: formData1,
+            type: "POST",
+            dataType:"json",
+            async: false
+        }).responseText;
+                     
+        var tabledata1 = new google.visualization.DataTable(jsonData1);
+        //data.addRow([tabledata1.getValue(0,0), tabledata1.getValue(0,1), tabledata1.getValue(0,2), tabledata1.getValue(0,3)]);
+        data.addRow([tabledata1.getValue(0,0), tabledata1.getValue(0,1), tabledata1.getValue(0,2)]);
+        chart.draw(data, options);
+                                                
+        setTimeout(function(){updateStreamsChart(data, chart, options)}, 10000);
+    }
+
+    function drawDataQualityChart() {
+        var formData1 = {type:"DATAQUALITY"};
+        var jsonData1 = $.ajax({
+            url: "getTaxiData.php",
+            data: formData1,
+            type: "POST",
+            dataType:"json",
+            async: false
+        }).responseText;
+                         
+        // Create our data table out of JSON data loaded from server.
+        var tabledata1 = new google.visualization.DataTable(jsonData1);
+
+        var options = {
+            width: 800,
+            height: 400,
+            isStacked: 'percent',
+            title: 'Data Quality',
+            vAxis: {
+                minValue: 0,
+                ticks: [0, .3, .6, .9, 1]
+            }
+        };
+
+        // Instantiate and draw our chart, passing in some options.
+        var table1 = new google.visualization.ColumnChart(document.getElementById('chart_div2'));
+        table1.draw(tabledata1, options);
+        updateDataQualityChart(tabledata1, table1, options);
+    }
+
+
+    function updateDataQualityChart(data, chart, options) {
+        var formData1 = {type:"DATAQUALITY"};
+        var jsonData1 = $.ajax({
+            url: "getTaxiData.php",
+            data: formData1,
+            type: "POST",
+            dataType:"json",
+            async: false
+        }).responseText;
+                     
+        var tabledata1 = new google.visualization.DataTable(jsonData1);
+        data.addRow([tabledata1.getValue(0,0), tabledata1.getValue(0,1), tabledata1.getValue(0,2)]);
+        chart.draw(data, options);
+                                                
+        setTimeout(function(){updateDataQualityChart(data, chart, options)}, 10000);
+    }
+
+
+
+
+    </script>
+    <script type="text/javascript">
+        $(document).ready(function(){
+                //setInterval(drawProcessDataTable, 10000);
+                //setInterval(drawTaxiLatestTable, 10000);
+        });
+    </script>
+
+
+  </head>
+
+  <body>  
+     <table align="left">
+      <tr valign="top">
+        <td style="width: 50%;">
+    	  <img src="/Pivotal-Logo.jpg" style="width:300px;height:100px"/>
+        </td>
+        <td style="width: 50%;">
+  	  <div class="row-fluid">
+           <div class="span12" style="padding: 10px 0px;">
+             <h1>Real Time Streaming Demo</h1>
+           </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+    This demo showcases power of PCF, Spring Cloud Dataflow, Spring Cloud Service and Redis.
+    <ul>
+      <li>Spring Cloud Dataflow receives a stream of taxi data. Sample data can be viewed <a href="sampledata.html" target="_blank">here</a>.</li>
+      <li>Goal of the demo is to quickly evaluate top 10 busiest area based on taxi pickup and dropoff information received from streams.</li>
+      <li>Each area is a square 1kmx1km.</li>
+      <li>Data needs to be refreshed every 10 seconds.</li>
+      <li>Data is not clean. Drivers could give incorrect information like wrong fare, forgot to enter pickup location, wrong latitude/longitude etc</li>
+    </ul>
+    Below you could see <u>number of streams being processed</u>, <u>top 10 areas and details</u>. <b>ALL IN REAL TIME</b>.
+
+    <!--Div that will hold the charts-->
+<br/>
+    <br/>
+    <br/>
+    <table>
+      <tr valign="top">
+        <td style="width: 27%;">
+    	  <input type="button" value="Problem Statement" onclick="location.href='/index.html'"/>
+        </td>
+        <td style="width: 20%;">
+    	  <input type="button" value="Events Processing(RT)" onclick="location.href='/taxidata.html'"/>
+        </td>
+        <td style="width: 20%;">
+    	  <input type="button" value="Free Taxies/Top Routes(RT)" onclick="location.href='/freetaxiesandroutes.html'"/>
+        </td>
+      </tr>
+    </table>
+
+
+<br/>
+    <br/>
+    <table align="center">
+        <tr valign="top">
+            <td style="width: 70%;">
+                <div id="chart_div1"></div>
+            </td>
+        </tr>
+        <tr valign="top">
+            <td style="width: 70%;">
+                <div id="chart_div4"></div>
+            </td>
+        </tr>
+        <tr valign="top">
+            <td style="width: 70%;">
+                <div id="chart_div2"></div>
+            </td>
+        </tr>
+    </table>
+    <br/>
+  </body>
+</html>
