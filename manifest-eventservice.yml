@@ -1,0 +1,13 @@
+---
+instances: 1
+memory: 400M
+applications:
+  - name: eventservice-iot
+    host: eventservice-iot
+    path: eventservice/target/eventservice-1.0-SNAPSHOT.jar
+    services:
+      - config-server
+      - service-registry
+    env:
+      SPRING_PROFILES_ACTIVE: pcf
+      CF_TARGET: https://api.local.pcfdev.io

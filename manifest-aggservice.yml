@@ -1,0 +1,13 @@
+---
+instances: 1
+memory: 400M
+applications:
+  - name: aggservice-iot
+    host: aggservice-iot
+    path: aggregatorservice/target/aggregatorservice-1.0-SNAPSHOT.jar
+    services:
+      - service-registry
+      - circuit-breaker
+    env:
+      SPRING_PROFILES_ACTIVE: pcf
+      CF_TARGET: https://api.local.pcfdev.io

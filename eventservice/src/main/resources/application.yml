@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: eventservice-iot-v1
+  cloud:
+    services:
+      registrationMethod: route
+
+security:
+  basic:
+    enabled: false
+
+management:
+  security:
+    enabled: false
+
+---
+
+spring:
+  profiles: pcf
+
+  redis:
+    host: ${redis_host}
+    port: ${redis_port}
+    password: ${redis_password}
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${vcap.services.service-registry.credentials.uri:http://127.0.0.1:8761}/eureka/
+  instance:
+    hostname: ${vcap.application.uris[0]}
+    nonSecurePort: 80
+    metadataMap:
+      instanceId: ${vcap.application.instance_id:${spring.application.name}:${server.port:8080}}
+
+---
+
+spring:
+  profiles: local
+
+  redis:
+    host: localhost
+    port: 6379
+    password: changeme
+
